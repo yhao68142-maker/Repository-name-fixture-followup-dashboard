@@ -6,7 +6,7 @@ on:
     - cron: "30 23 * * *"
 
 permissions:
-  contents: write
+  contents: read
   pages: write
   id-token: write
 
@@ -15,8 +15,12 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  update-data:
+  update-and-deploy:
     runs-on: ubuntu-latest
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
       - name: Checkout
@@ -39,25 +43,12 @@ jobs:
           FEISHU_SHEET_RANGES: ${{ secrets.FEISHU_SHEET_RANGES }}
         run: node scripts/fetch-feishu-data.js
 
-      - name: Commit generated data
+      - name: Check generated files
         run: |
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
-                   git add -A public/data
-          git commit -m "Update Feishu fixture data" || echo "No changes to commit"
-          git push
-
-  deploy:
-    needs: update-data
-    runs-on: ubuntu-latest
-
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+          echo "=== public/data ==="
+          ls -la public/data
+          echo "=== fixtures preview ==="
+          head -n 20 public/data/fixtures.json
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
