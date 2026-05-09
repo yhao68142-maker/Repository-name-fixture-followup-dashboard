@@ -43,7 +43,7 @@ jobs:
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
-          git add public/data/fixtures.json public/data/meta.json
+                   git add -A public/data
           git commit -m "Update Feishu fixture data" || echo "No changes to commit"
           git push
 
