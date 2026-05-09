@@ -1,0 +1,22 @@
+{
+  "name": "fixture-followup-web",
+  "version": "1.0.0",
+  "description": "治具外发交期跟催看板：读取飞书云表格，按厂商/设计/厂区/交期状态筛选并生成微信跟催话术。",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "fetch:feishu": "node scripts/fetch-feishu-data.js"
+  },
+  "dependencies": {
+    "axios": "^1.7.9",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "helmet": "^8.0.0",
+    "morgan": "^1.10.0",
+    "xlsx": "^0.18.5"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

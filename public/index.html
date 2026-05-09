@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>治具外发交期跟催看板</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <h1>治具外发交期跟催看板</h1>
+      <p>从飞书云表格同步数据，按厂商、设计人员、厂区和交期状态筛选，并一键复制微信跟催文字。</p>
+    </div>
+    <div class="top-actions">
+      <button id="btnRefresh" class="primary">刷新页面数据</button>
+      <button id="btnCopyAll" class="secondary">复制当前筛选话术</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="status-line" id="statusLine">正在准备页面...</section>
+
+    <section class="cards">
+      <div class="card danger"><span>已延期</span><strong id="countOverdue">0</strong></div>
+      <div class="card warn"><span>3天内交付</span><strong id="count3">0</strong></div>
+      <div class="card info"><span>7天内交付</span><strong id="count7">0</strong></div>
+      <div class="card normal"><span>一个月内交付</span><strong id="count30">0</strong></div>
+      <div class="card done"><span>已完成</span><strong id="countDone">0</strong></div>
+    </section>
+
+    <section class="panel filters">
+      <div class="field">
+        <label>厂商</label>
+        <select id="supplierFilter"><option value="">全部</option></select>
+      </div>
+      <div class="field">
+        <label>设计人员</label>
+        <select id="designerFilter"><option value="">全部</option></select>
+      </div>
+      <div class="field">
+        <label>厂区</label>
+        <select id="factoryFilter"><option value="">全部</option></select>
+      </div>
+      <div class="field">
+        <label>交期状态</label>
+        <select id="bucketFilter">
+          <option value="">全部</option>
+          <option value="overdue">已延期</option>
+          <option value="today">今天到期</option>
+          <option value="within3">3天内交付</option>
+          <option value="within7">7天内交付</option>
+          <option value="within30">一个月内交付</option>
+          <option value="later">一个月后</option>
+          <option value="done">已完成</option>
+          <option value="noDate">无交期</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>交期开始</label>
+        <input id="startDate" type="date" />
+      </div>
+      <div class="field">
+        <label>交期结束</label>
+        <input id="endDate" type="date" />
+      </div>
+      <div class="field wide">
+        <label>关键词</label>
+        <input id="keywordFilter" placeholder="治具编码 / 治具名称 / 备注 / PR单号" />
+      </div>
+      <div class="field checkbox-field">
+        <label>&nbsp;</label>
+        <label class="check"><input id="hideDone" type="checkbox" checked /> 隐藏已完成</label>
+      </div>
+      <div class="field buttons-field">
+        <label>&nbsp;</label>
+        <button id="btnReset" class="ghost">重置筛选</button>
+      </div>
+    </section>
+
+    <section class="layout">
+      <section class="panel table-panel">
+        <div class="panel-head">
+          <h2>治具清单</h2>
+          <div class="panel-actions">
+            <span id="resultCount">0 条</span>
+            <button id="btnSelectVisible" class="ghost small">勾选当前页</button>
+            <button id="btnClearSelect" class="ghost small">清空勾选</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th><input id="checkAll" type="checkbox" /></th>
+                <th>交期判断</th>
+                <th>厂商</th>
+                <th>厂区</th>
+                <th>设计</th>
+                <th>治具编码</th>
+                <th>治具名称</th>
+                <th>数量</th>
+                <th>交期</th>
+                <th>状态</th>
+                <th>备注</th>
+              </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <aside class="panel message-panel">
+        <div class="panel-head">
+          <h2>微信跟催话术</h2>
+          <button id="btnCopySelected" class="primary small">复制勾选话术</button>
+        </div>
+        <div class="message-toolbar">
+          <label>模板</label>
+          <select id="templateMode">
+            <option value="auto">按交期状态自动</option>
+            <option value="overdue">延期跟催</option>
+            <option value="dueSoon">交期提醒</option>
+            <option value="normal">普通确认</option>
+          </select>
+        </div>
+        <textarea id="messagePreview" placeholder="筛选或勾选治具后，这里会自动生成跟催文字。"></textarea>
+        <div class="tips">
+          <strong>使用建议：</strong>先按厂商筛选，确认内容无误后复制到个人微信发送。复制动作会记录在本机浏览器，不会自动发送微信。
+        </div>
+      </aside>
+    </section>
+  </main>
+
+  <script src="./app.js"></script>
+</body>
+</html>
