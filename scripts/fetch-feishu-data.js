@@ -176,6 +176,19 @@ async function main() {
 }
 
 main().catch((err) => {
+  console.error('=== ERROR MESSAGE ===');
   console.error(err.message);
+
+  if (err.response) {
+    console.error('=== HTTP STATUS ===');
+    console.error(err.response.status);
+
+    console.error('=== RESPONSE DATA ===');
+    console.error(JSON.stringify(err.response.data, null, 2));
+
+    console.error('=== RESPONSE HEADERS ===');
+    console.error(JSON.stringify(err.response.headers, null, 2));
+  }
+
   process.exit(1);
 });
