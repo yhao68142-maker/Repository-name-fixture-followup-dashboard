@@ -3,17 +3,17 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>治具外发交期跟催数据看板</title>
+  <title>厂商治具交付达成率看板</title>
   <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
   <header class="hero">
-    <div class="hero-bg"></div>
+    <div class="hero-grid"></div>
     <div class="hero-content">
       <div>
-        <p class="eyebrow">Fixture Delivery Intelligence Dashboard</p>
-        <h1>治具外发交期跟催数据看板</h1>
-        <p>同步飞书云表格所有 Sheet，支持按项目页签、厂区、厂商、设计人员、交期区间筛选，并输出交付率、延期率、达成率和微信跟催话术。</p>
+        <p class="eyebrow">Fixture Delivery Intelligence</p>
+        <h1>厂商治具交付达成率看板</h1>
+        <p class="hero-desc">同步飞书云表格 6 个 Sheet，支持按项目页签、厂区、厂商、设计人员、治具状态、交期区间筛选，并生成微信跟催话术。</p>
       </div>
       <div class="top-actions">
         <button id="btnRefresh" class="primary">刷新页面数据</button>
@@ -25,69 +25,99 @@
   <main>
     <section class="status-line" id="statusLine">正在准备页面...</section>
 
+    <section class="sheet-tabs-panel panel">
+      <div class="section-head inline">
+        <div>
+          <h2>项目页签切换</h2>
+          <p>可在 6 个 Sheet 之间快速切换，也可选择“全部项目”进行汇总分析。</p>
+        </div>
+        <span id="sheetCountBadge" class="soft-badge">0 个 Sheet</span>
+      </div>
+      <div id="sheetTabs" class="sheet-tabs"></div>
+    </section>
+
     <section class="cards kpi-main">
-      <div class="card dark"><span>总项目数</span><strong id="countTotal">0</strong><em>当前筛选</em></div>
-      <div class="card danger"><span>已延期</span><strong id="countOverdue">0</strong><em>未完成且已过交期</em></div>
-      <div class="card warn"><span>3天内交付</span><strong id="count3">0</strong><em>含今天到期</em></div>
-      <div class="card info"><span>7天内交付</span><strong id="count7">0</strong><em>未来一周风险</em></div>
-      <div class="card normal"><span>一个月内交付</span><strong id="count30">0</strong><em>未来30天</em></div>
-      <div class="card done"><span>已完成</span><strong id="countDone">0</strong><em>状态判定</em></div>
+      <div class="card dark"><span>当前筛选总行数</span><strong id="countTotal">0</strong><em>包含空白/审核阶段</em></div>
+      <div class="card valid"><span>绩效统计母数</span><strong id="countValid">0</strong><em>排除空白与审核阶段</em></div>
+      <div class="card done"><span>已交付</span><strong id="countDelivered">0</strong><em>治具现状态=已领用</em></div>
+      <div class="card audit"><span>审核阶段</span><strong id="countAudit">0</strong><em>仓库验收中 / 打样中</em></div>
+      <div class="card danger"><span>已延期</span><strong id="countOverdue">0</strong><em>有效统计内且已过交期</em></div>
+      <div class="card muted"><span>状态空白</span><strong id="countBlank">0</strong><em>不计入交付率分母</em></div>
     </section>
 
     <section class="panel filters">
-      <div class="field">
-        <label>项目 / Sheet 页签</label>
-        <select id="sheetFilter"><option value="">全部</option></select>
+      <div class="filter-title">
+        <h2>筛选条件</h2>
+        <p id="filterSummary">可组合筛选项目、厂区、厂商、设计人员、状态和日期区间。</p>
       </div>
-      <div class="field">
-        <label>厂区 / 类别</label>
-        <select id="factoryFilter"><option value="">全部</option></select>
-      </div>
-      <div class="field">
-        <label>厂商</label>
-        <select id="supplierFilter"><option value="">全部</option></select>
-      </div>
-      <div class="field">
-        <label>设计人员</label>
-        <select id="designerFilter"><option value="">全部</option></select>
-      </div>
-      <div class="field">
-        <label>交期状态</label>
-        <select id="bucketFilter">
-          <option value="">全部</option>
-          <option value="overdue">已延期</option>
-          <option value="today">今天到期</option>
-          <option value="within3">3天内交付</option>
-          <option value="within7">7天内交付</option>
-          <option value="within30">一个月内交付</option>
-          <option value="later">一个月后</option>
-          <option value="done">已完成</option>
-          <option value="noDate">无交期</option>
-        </select>
-      </div>
-      <div class="field">
-        <label>交期开始</label>
-        <input id="startDate" type="date" />
-      </div>
-      <div class="field">
-        <label>交期结束</label>
-        <input id="endDate" type="date" />
-      </div>
-      <div class="field wide">
-        <label>关键词</label>
-        <input id="keywordFilter" placeholder="治具编码 / 治具名称 / 备注 / PR单号" />
-      </div>
-      <div class="field checkbox-field">
-        <label>&nbsp;</label>
-        <label class="check"><input id="hideDone" type="checkbox" checked /> 隐藏已完成</label>
-      </div>
-      <div class="field buttons-field">
-        <label>快捷区间</label>
-        <div class="quick-buttons">
-          <button id="btnThisMonth" class="ghost small">本月</button>
-          <button id="btnNext30" class="ghost small">未来30天</button>
-          <button id="btnAllDates" class="ghost small">全部</button>
-          <button id="btnReset" class="ghost small">重置</button>
+      <div class="filter-grid">
+        <div class="field">
+          <label>项目 / Sheet 页签</label>
+          <select id="sheetFilter"><option value="">全部</option></select>
+        </div>
+        <div class="field">
+          <label>厂区 / 类别</label>
+          <select id="factoryFilter"><option value="">全部</option></select>
+        </div>
+        <div class="field">
+          <label>厂商</label>
+          <select id="supplierFilter"><option value="">全部</option></select>
+        </div>
+        <div class="field">
+          <label>设计人员</label>
+          <select id="designerFilter"><option value="">全部</option></select>
+        </div>
+        <div class="field">
+          <label>治具现状态阶段</label>
+          <select id="statusStageFilter">
+            <option value="">全部</option>
+            <option value="delivered">已交付：已领用</option>
+            <option value="audit">审核阶段：仓库验收中/打样中</option>
+            <option value="production">厂商制作中</option>
+            <option value="blank">状态空白</option>
+            <option value="other">其他状态</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>交期状态</label>
+          <select id="bucketFilter">
+            <option value="">全部</option>
+            <option value="overdue">已延期</option>
+            <option value="today">今天到期</option>
+            <option value="within3">3天内交付</option>
+            <option value="within7">7天内交付</option>
+            <option value="within30">一个月内交付</option>
+            <option value="later">一个月后</option>
+            <option value="done">已交付</option>
+            <option value="audit">审核阶段</option>
+            <option value="noDate">无交期</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>交期开始</label>
+          <input id="startDate" type="date" />
+        </div>
+        <div class="field">
+          <label>交期结束</label>
+          <input id="endDate" type="date" />
+        </div>
+        <div class="field wide">
+          <label>关键词</label>
+          <input id="keywordFilter" placeholder="治具编码 / 治具名称 / 备注 / PR单号 / 到货确认人" />
+        </div>
+        <div class="field checkbox-field">
+          <label>显示控制</label>
+          <label class="check"><input id="hideDelivered" type="checkbox" /> 隐藏已交付</label>
+          <label class="check"><input id="hideBlank" type="checkbox" /> 隐藏状态空白</label>
+        </div>
+        <div class="field buttons-field">
+          <label>快捷区间</label>
+          <div class="quick-buttons">
+            <button id="btnThisMonth" class="ghost small">本月</button>
+            <button id="btnNext30" class="ghost small">未来30天</button>
+            <button id="btnAllDates" class="ghost small">全部日期</button>
+            <button id="btnReset" class="ghost small">重置筛选</button>
+          </div>
         </div>
       </div>
     </section>
@@ -96,35 +126,36 @@
       <section class="panel dashboard-panel">
         <div class="panel-head">
           <div>
-            <h2>交付绩效看板</h2>
+            <h2>厂商治具交付达成率看板</h2>
             <p id="dashboardPeriod">按当前筛选和交期区间统计</p>
           </div>
           <div class="field compact">
             <label>分组维度</label>
             <select id="groupDimension">
-              <option value="factory">按厂区 / 类别</option>
               <option value="supplier">按厂商</option>
+              <option value="factory">按厂区 / 类别</option>
               <option value="designer">按设计人员</option>
               <option value="sourceSheet">按项目 / Sheet 页签</option>
             </select>
           </div>
         </div>
         <div class="metric-row">
-          <div><span>交付率</span><strong id="deliveryRate">0%</strong><div class="bar"><i id="deliveryRateBar"></i></div></div>
-          <div><span>延期率</span><strong id="delayRate">0%</strong><div class="bar danger-bar"><i id="delayRateBar"></i></div></div>
-          <div><span>当前达成率</span><strong id="achievementRate">0%</strong><div class="bar success-bar"><i id="achievementRateBar"></i></div></div>
+          <div><span>已交付率</span><strong id="deliveryRate">0%</strong><div class="bar"><i id="deliveryRateBar"></i></div><small>已领用 / 绩效母数</small></div>
+          <div><span>延期率</span><strong id="delayRate">0%</strong><div class="bar danger-bar"><i id="delayRateBar"></i></div><small>有效统计中已过交期</small></div>
+          <div><span>当前达成率</span><strong id="achievementRate">0%</strong><div class="bar success-bar"><i id="achievementRateBar"></i></div><small>未延期项 / 绩效母数</small></div>
+          <div><span>审核中占比</span><strong id="auditRate">0%</strong><div class="bar audit-bar"><i id="auditRateBar"></i></div><small>审核阶段 / 非空状态</small></div>
         </div>
         <div class="dash-table-wrap">
           <table class="dash-table">
             <thead>
               <tr>
-                <th>对象</th><th>总项</th><th>已完成</th><th>已延期</th><th>3天内</th><th>交付率</th><th>延期率</th><th>达成率</th>
+                <th>对象</th><th>总行数</th><th>绩效母数</th><th>已交付</th><th>审核中</th><th>已延期</th><th>状态空白</th><th>已交付率</th><th>延期率</th><th>达成率</th>
               </tr>
             </thead>
             <tbody id="dashboardBody"></tbody>
           </table>
         </div>
-        <p class="definition-note">说明：交付率=已完成/总项；延期率=未完成且交期已过/总项；当前达成率=未延期项/总项。若表格后续增加“实际到货日期”，可进一步升级为准时交付率。</p>
+        <p class="definition-note">统计口径：①“已领用”视为厂商已交付；②“仓库验收中、打样中”视为审核阶段，单独统计；③“治具现状态”为空不计入交付率/延期率/达成率分母；④绩效母数默认排除状态空白与审核阶段。</p>
       </section>
 
       <aside class="panel sheet-panel">
@@ -136,10 +167,10 @@
     <section class="layout">
       <section class="panel table-panel">
         <div class="panel-head">
-          <h2>治具清单</h2>
+          <h2>治具明细清单</h2>
           <div class="panel-actions">
             <span id="resultCount">0 条</span>
-            <button id="btnSelectVisible" class="ghost small">勾选当前页</button>
+            <button id="btnSelectVisible" class="ghost small">勾选当前筛选</button>
             <button id="btnClearSelect" class="ghost small">清空勾选</button>
           </div>
         </div>
@@ -157,7 +188,8 @@
                 <th>治具名称</th>
                 <th>数量</th>
                 <th>交期</th>
-                <th>状态</th>
+                <th>治具现状态</th>
+                <th>阶段</th>
                 <th>备注</th>
               </tr>
             </thead>
@@ -177,12 +209,13 @@
             <option value="auto">按交期状态自动</option>
             <option value="overdue">延期跟催</option>
             <option value="dueSoon">交期提醒</option>
+            <option value="audit">审核进度确认</option>
             <option value="normal">普通确认</option>
           </select>
         </div>
         <textarea id="messagePreview" placeholder="筛选或勾选治具后，这里会自动生成跟催文字。"></textarea>
         <div class="tips">
-          <strong>使用建议：</strong>先按厂商筛选，确认内容无误后复制到个人微信发送。本网页不自动发送微信，避免误发和账号风险。
+          <strong>使用建议：</strong>先按厂商筛选，再复制话术到个人微信发送。网页只生成文字，不自动发送微信，避免误发风险。
         </div>
       </aside>
     </section>

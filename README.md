@@ -1,30 +1,36 @@
-# 治具外发交期跟催数据看板
+# 厂商治具交付达成率看板 V3
 
-面向治具外发管理场景的轻量化网页看板。数据源来自飞书云表格，页面部署在 GitHub Pages。
+## V3 更新内容
 
-## 功能
+- 支持飞书表格全部 Sheet 页签同步，建议 GitHub Secret `FEISHU_SHEET_RANGES=ALL`。
+- 新增顶部项目页签切换：全部项目、苏州治具、铜陵治具、泰国治具、加急治具、CO-NPI治具需求、耦合治具库存等。
+- 将看板名称调整为“厂商治具交付达成率看板”。
+- 按用户规则重定义治具状态口径：
+  - `已领用` = 厂商已交付。
+  - `仓库验收中`、`打样中` = 审核阶段，单独统计。
+  - `治具现状态`空白 = 不计入交付率、延期率、达成率分母。
+- 绩效统计母数默认排除状态空白和审核阶段。
+- 支持按 Sheet、厂区、厂商、设计人员、治具现状态阶段、交期状态、日期区间、关键词组合筛选。
+- 优化页面排布：顶部页签、KPI 卡片、筛选区、达成率看板、Sheet 同步状态、明细清单、微信话术区。
 
-- 读取飞书 Wiki 表格全部 Sheet 页签。
-- 按项目页签、厂区、厂商、设计人员、交期状态、日期区间筛选。
-- 自动识别已延期、今天到期、3天内、7天内、一个月内、已完成等状态。
-- 提供交付率、延期率、当前达成率看板。
-- 按厂区、厂商、设计人员、Sheet 页签进行分组统计。
-- 生成微信跟催话术并一键复制。
+## 主要指标口径
 
-## GitHub Pages 推荐配置
+- 绩效统计母数 = 当前筛选数据中，治具现状态非空，且不属于“仓库验收中/打样中”等审核阶段的数据。
+- 已交付率 = 已领用数量 / 绩效统计母数。
+- 延期率 = 有效统计范围内，未已领用且交期已过数量 / 绩效统计母数。
+- 当前达成率 = 有效统计范围内未延期数量 / 绩效统计母数。
+- 审核中占比 = 审核阶段数量 / 状态非空数量。
 
-GitHub Secrets：
+## 部署重点
+
+GitHub Secrets 中请确认：
 
 ```text
-FEISHU_APP_ID=你的飞书 App ID
-FEISHU_APP_SECRET=你的飞书 App Secret
-FEISHU_WIKI_NODE_TOKEN=BxSgwTdZUiFI56kPBLNcoAclnId
 FEISHU_SHEET_RANGES=ALL
 ```
 
-部署：
+然后在 GitHub Actions 中运行：
 
 ```text
-Settings → Pages → Source → GitHub Actions
-Actions → Update Feishu Data and Deploy Pages → Run workflow
+Update Feishu Data and Deploy Pages → Run workflow
 ```
