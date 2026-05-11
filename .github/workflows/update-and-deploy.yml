@@ -48,7 +48,7 @@ jobs:
           echo "=== public/data ==="
           ls -la public/data
           echo "=== fixtures preview ==="
-          head -n 20 public/data/fixtures.json
+          head -n 30 public/data/fixtures.json
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
