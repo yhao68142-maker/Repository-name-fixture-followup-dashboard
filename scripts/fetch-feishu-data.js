@@ -1,8 +1,10 @@
 /*
   Fetch Feishu/Lark spreadsheet data and generate public/data/fixtures.json.
-  Supports either:
+  Supports:
   1) FEISHU_SPREADSHEET_TOKEN=shtcnxxx
   2) FEISHU_WIKI_NODE_TOKEN=BxS...  -> resolves obj_token through Wiki API first
+  3) FEISHU_SHEET_RANGES=ALL        -> auto read all sheets/tabs
+  4) FEISHU_SHEET_RANGES=苏州|sheetId!A1:T5000,铜陵|sheetId!A1:T5000
 */
 require('dotenv').config();
 
@@ -67,22 +69,39 @@ function cleanText(value) {
   return String(value ?? '').replace(/\r/g, '\n').trim();
 }
 
-function mapRowsToFixtures(values, sourceFactory = '') {
+function deriveFactoryFromSheet(title) {
+  const t = cleanText(title);
+  if (/苏州|SZ/i.test(t)) return '苏州';
+  if (/铜陵|TL/i.test(t)) return '铜陵';
+  if (/泰国|TH/i.test(t)) return '泰国';
+  if (/CO[-_ ]?NPI/i.test(t)) return 'CO-NPI';
+  if (/加急/.test(t)) return '加急';
+  if (/库存/.test(t)) return '库存';
+  return t || '未分类';
+}
+
+function mapRowsToFixtures(values, sheetInfo = {}) {
   if (!Array.isArray(values) || values.length < 2) return [];
   const headers = values[0].map(normalizeHeader);
   const indexes = {};
   for (const [key, candidates] of Object.entries(columnMap)) indexes[key] = findColumnIndex(headers, candidates);
 
+  const sourceSheet = sheetInfo.title || sheetInfo.factory || '';
+  const fallbackFactory = sheetInfo.factory || deriveFactoryFromSheet(sourceSheet);
+  const sourceSheetId = sheetInfo.sheetId || '';
+
   return values.slice(1).map((row, i) => {
     const get = (key) => (indexes[key] >= 0 ? row[indexes[key]] : '');
-    const factory = cleanText(get('factory')) || sourceFactory;
+    const factory = cleanText(get('factory')) || fallbackFactory;
     const fixtureCode = cleanText(get('fixtureCode'));
     const fixtureName = cleanText(get('fixtureName'));
     const supplier = cleanText(get('supplier'));
     const dueDate = parseDateValue(get('dueDate'));
     if (!supplier && !fixtureCode && !fixtureName && !dueDate) return null;
     return {
-      id: `${sourceFactory}-${i + 2}-${fixtureCode || fixtureName || supplier}`,
+      id: `${sourceSheetId || fallbackFactory}-${i + 2}-${fixtureCode || fixtureName || supplier}`,
+      sourceSheet,
+      sourceSheetId,
       factory,
       applicant: cleanText(get('applicant')),
       user: cleanText(get('user')),
@@ -96,10 +115,10 @@ function mapRowsToFixtures(values, sourceFactory = '') {
       dueDate,
       currentStatus: cleanText(get('currentStatus')),
       arrivalConfirm: cleanText(get('arrivalConfirm')),
+      actualDeliveryDate: parseDateValue(get('actualDeliveryDate')),
       poDate: parseDateValue(get('poDate')),
       remark: cleanText(get('remark')),
       prNo: cleanText(get('prNo')),
-      sourceFactory,
       rawRowNumber: i + 2
     };
   }).filter(Boolean);
@@ -134,11 +153,55 @@ async function resolveSpreadsheetToken(token) {
   return objToken;
 }
 
-function parseRangesConfig() {
-  const ranges = String(process.env.FEISHU_SHEET_RANGES || '').split(',').map(s => s.trim()).filter(Boolean);
-  return ranges.map(item => {
-    const [factory, range] = item.includes('|') ? item.split('|') : ['', item];
-    return { factory: factory.trim(), range: range.trim() };
+async function getSheetsMeta(spreadsheetToken, tenantToken) {
+  const headers = { Authorization: `Bearer ${tenantToken}` };
+  // v2 meta endpoint is supported by many Feishu tenants.
+  try {
+    const url = `${FEISHU_BASE}/sheets/v2/spreadsheets/${spreadsheetToken}/metainfo`;
+    const resp = await axios.get(url, { headers });
+    if (resp.data.code === 0) {
+      const sheets = resp.data?.data?.sheets || [];
+      return sheets.map(s => ({
+        sheetId: s.sheetId || s.sheet_id,
+        title: s.title || s.name || s.sheetName || s.sheet_name || s.sheetId || s.sheet_id
+      })).filter(s => s.sheetId);
+    }
+  } catch (e) {
+    console.warn(`v2 metainfo 获取失败，尝试 v3：${e.message}`);
+  }
+  // v3 fallback.
+  const url = `${FEISHU_BASE}/sheets/v3/spreadsheets/${spreadsheetToken}/sheets/query`;
+  const resp = await axios.get(url, { headers });
+  if (resp.data.code !== 0) throw new Error(`获取工作表列表失败：${resp.data.msg || JSON.stringify(resp.data)}`);
+  const sheets = resp.data?.data?.sheets || [];
+  return sheets.map(s => ({
+    sheetId: s.sheet_id || s.sheetId,
+    title: s.title || s.name || s.sheet_id || s.sheetId
+  })).filter(s => s.sheetId);
+}
+
+function parseRangesConfig(sheetsMeta = []) {
+  const raw = String(process.env.FEISHU_SHEET_RANGES || '').trim();
+  if (!raw || raw.toUpperCase() === 'ALL' || raw === '全部') {
+    return sheetsMeta.map(s => ({
+      factory: deriveFactoryFromSheet(s.title),
+      title: s.title,
+      sheetId: s.sheetId,
+      range: `${s.sheetId}!A1:Z5000`
+    }));
+  }
+  const rangeItems = raw.split(',').map(s => s.trim()).filter(Boolean);
+  return rangeItems.map(item => {
+    const [label, rangePart] = item.includes('|') ? item.split('|') : ['', item];
+    const range = rangePart.trim();
+    const sheetId = range.split('!')[0];
+    const meta = sheetsMeta.find(s => s.sheetId === sheetId) || {};
+    return {
+      factory: label.trim() || deriveFactoryFromSheet(meta.title || sheetId),
+      title: meta.title || label.trim() || sheetId,
+      sheetId,
+      range
+    };
   });
 }
 
@@ -152,14 +215,20 @@ async function readFeishuRange(spreadsheetToken, tenantToken, range) {
 async function main() {
   const tenantToken = await getTenantAccessToken();
   const spreadsheetToken = await resolveSpreadsheetToken(tenantToken);
-  const configs = parseRangesConfig();
-  if (!configs.length) throw new Error('缺少 FEISHU_SHEET_RANGES，例如：苏州|3b87c3!A1:T5000');
+  const sheetsMeta = await getSheetsMeta(spreadsheetToken, tenantToken);
+  if (!sheetsMeta.length) throw new Error('没有获取到任何 Sheet。请确认电子表格权限和 Wiki 节点是否正确。');
+
+  const configs = parseRangesConfig(sheetsMeta);
+  if (!configs.length) throw new Error('没有可读取的 Sheet 范围。请设置 FEISHU_SHEET_RANGES=ALL 或 苏州|sheetId!A1:Z5000。');
 
   const all = [];
+  const readSheets = [];
   for (const cfg of configs) {
-    console.log(`读取：${cfg.factory || '-'} ${cfg.range}`);
+    console.log(`读取：${cfg.title || cfg.factory || '-'} ${cfg.range}`);
     const values = await readFeishuRange(spreadsheetToken, tenantToken, cfg.range);
-    all.push(...mapRowsToFixtures(values, cfg.factory));
+    const rows = mapRowsToFixtures(values, cfg);
+    all.push(...rows);
+    readSheets.push({ title: cfg.title, sheetId: cfg.sheetId, factory: cfg.factory, range: cfg.range, rows: rows.length });
   }
 
   const out = {
@@ -167,6 +236,7 @@ async function main() {
     source: process.env.FEISHU_WIKI_NODE_TOKEN ? 'feishu-wiki' : 'feishu-sheet',
     updatedAt: new Date().toISOString(),
     count: all.length,
+    sheets: readSheets,
     data: all
   };
   const outPath = path.join(__dirname, '../public/data/fixtures.json');
@@ -178,17 +248,11 @@ async function main() {
 main().catch((err) => {
   console.error('=== ERROR MESSAGE ===');
   console.error(err.message);
-
   if (err.response) {
     console.error('=== HTTP STATUS ===');
     console.error(err.response.status);
-
     console.error('=== RESPONSE DATA ===');
     console.error(JSON.stringify(err.response.data, null, 2));
-
-    console.error('=== RESPONSE HEADERS ===');
-    console.error(JSON.stringify(err.response.headers, null, 2));
   }
-
   process.exit(1);
 });

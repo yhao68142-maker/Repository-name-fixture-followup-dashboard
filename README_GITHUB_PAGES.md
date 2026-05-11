@@ -1,183 +1,109 @@
-# 治具外发交期跟催看板：飞书云文档 + GitHub Pages 部署版
+# 治具外发交期跟催数据看板 - GitHub Pages 部署版
 
-## 重要说明
+## 一、版本说明
 
-GitHub Pages 是静态网站托管，只能安全地放 HTML/CSS/JS/JSON，不能在网页前端保存飞书 App Secret。
-所以本项目采用：
+本版本支持从飞书 Wiki 电子表格读取**所有 Sheet 页签**，并在 GitHub Pages 上生成静态网页看板。
 
-飞书云文档 → GitHub Actions 使用 Secrets 拉取数据 → 生成 public/data/fixtures.json → GitHub Pages 展示看板。
+主要功能：
 
-刷新机制：
-- 默认每天北京时间 08:30 自动同步一次。
-- 也可以在 GitHub Actions 页面手动点击 Run workflow 立即同步。
-- 网页上的“刷新页面数据”只是重新读取已经发布的 fixtures.json，不会直接调用飞书。
+- 自动读取飞书云表格所有 Sheet 页签。
+- 支持按项目 / Sheet 页签筛选，例如：苏州治具、铜陵治具、泰国治具、加急治具、CO-NPI 治具需求、耦合治具库存。
+- 支持按厂区、厂商、设计人员、交期状态、交期区间、关键词筛选。
+- 支持用户自定义日期区间。
+- 支持交付绩效看板：交付率、延期率、当前达成率。
+- 支持按厂区、厂商、设计人员、Sheet 页签分组统计。
+- 支持自动生成微信跟催话术并一键复制。
 
-如果你需要打开网页时实时读取飞书，不能只用 GitHub Pages，需要 Vercel/Render/Cloudflare Worker 等后端服务。
+## 二、GitHub Secrets 配置
 
----
+进入：
 
-## 一、上传项目到 GitHub
-
-1. 打开 GitHub，创建一个新仓库，例如：
-   `fixture-followup-dashboard`
-2. 把本项目所有文件上传到仓库根目录。
-3. 确认仓库里有这些文件：
-   - `public/index.html`
-   - `public/app.js`
-   - `scripts/fetch-feishu-data.js`
-   - `.github/workflows/update-and-deploy.yml`
-   - `package.json`
-
----
-
-## 二、设置 GitHub Pages
-
-进入仓库：
-
-`Settings → Pages`
-
-把 Source 设置为：
-
-`GitHub Actions`
-
-保存。
-
----
-
-## 三、设置 GitHub Secrets
-
-进入仓库：
-
-`Settings → Secrets and variables → Actions → New repository secret`
-
-添加下面 Secrets。
-
-### 必填 1：飞书应用凭证
-
-| Secret 名称 | 值 |
-|---|---|
-| `FEISHU_APP_ID` | 飞书开放平台自建应用的 App ID |
-| `FEISHU_APP_SECRET` | 飞书开放平台自建应用的 App Secret |
-
-### 必填 2：飞书表格来源，二选一
-
-如果你使用的是 Wiki 链接：
-
-`https://zj-innolight.feishu.cn/wiki/BxSgwTdZUiFI56kPBLNcoAclnId`
-
-添加：
-
-| Secret 名称 | 值 |
-|---|---|
-| `FEISHU_WIKI_NODE_TOKEN` | `BxSgwTdZUiFI56kPBLNcoAclnId` |
-
-同时可以不填 `FEISHU_SPREADSHEET_TOKEN`。
-
-如果你拿到了普通电子表格链接：
-
-`https://xxx.feishu.cn/sheets/shtcnxxxxxx?sheet=3b87c3`
-
-添加：
-
-| Secret 名称 | 值 |
-|---|---|
-| `FEISHU_SPREADSHEET_TOKEN` | `shtcnxxxxxx` |
-
-同时可以不填 `FEISHU_WIKI_NODE_TOKEN`。
-
-### 必填 3：读取范围
-
-| Secret 名称 | 示例值 |
-|---|---|
-| `FEISHU_SHEET_RANGES` | `苏州|3b87c3!A1:T5000` |
-
-多个厂区/工作表时，用英文逗号分隔：
-
-`苏州|3b87c3!A1:T5000,铜陵|xxxxxx!A1:T5000,泰国|yyyyyy!A1:T5000`
-
----
-
-## 四、飞书开放平台权限
-
-飞书自建应用至少需要：
-
-- 获取 tenant_access_token 的能力；
-- 读取云文档/电子表格的权限；
-- 如果使用 Wiki 链接，还需要读取知识库节点信息的权限；
-- 该应用必须有权限访问目标 Wiki/表格。
-
-常见处理方式：
-
-1. 在飞书开放平台创建企业自建应用；
-2. 开通云文档、电子表格、知识库读取相关权限；
-3. 发布应用版本；
-4. 确认目标 Wiki/表格对该应用可访问。
-
----
-
-## 五、手动运行同步和部署
-
-进入仓库：
-
-`Actions → Update Feishu Data and Deploy Pages → Run workflow`
-
-等待 workflow 变成绿色成功。
-
-成功后到：
-
-`Settings → Pages`
-
-查看网站地址，一般类似：
-
-`https://你的用户名.github.io/fixture-followup-dashboard/`
-
----
-
-## 六、常见错误
-
-### 1. 解析 Wiki 节点失败
-
-检查：
-
-- `FEISHU_WIKI_NODE_TOKEN` 是否只填了 `/wiki/` 后面的 token；
-- 飞书应用是否有知识库读取权限；
-- 飞书应用是否有权限访问该 Wiki 页面。
-
-### 2. Wiki 节点类型不是 sheet
-
-说明这个 Wiki 链接背后不是电子表格，可能是 docx、bitable 或其他类型。
-需要确认页面里的表格是否是真正飞书电子表格。
-
-### 3. 读取飞书范围失败
-
-检查：
-
-- `FEISHU_SHEET_RANGES` 中的 sheetId 是否正确，例如 `3b87c3`；
-- 范围格式是否为 `3b87c3!A1:T5000`；
-- 表格是否超过读取范围；
-- 应用是否有电子表格读取权限。
-
-### 4. 网页打开了但是没数据
-
-检查 Actions 日志里是否已经生成：
-
-`public/data/fixtures.json`
-
-如果 workflow 失败，网页会没有最新数据。
-
----
-
-## 七、本地测试飞书读取
-
-在本地新建 `.env`，参考 `.env.example` 填写，然后运行：
-
-```bash
-npm install
-npm run fetch:feishu
-npm start
+```text
+Settings → Secrets and variables → Actions → New repository secret
 ```
 
-浏览器打开：
+至少配置以下内容：
 
-`http://localhost:3000`
+| Secret 名称 | 示例 |
+|---|---|
+| FEISHU_APP_ID | cli_xxxxxxxxxxxxx |
+| FEISHU_APP_SECRET | 飞书应用密钥 |
+| FEISHU_WIKI_NODE_TOKEN | BxSgwTdZUiFI56kPBLNcoAclnId |
+| FEISHU_SHEET_RANGES | ALL |
+
+注意：新版建议将 `FEISHU_SHEET_RANGES` 设置为：
+
+```text
+ALL
+```
+
+这样程序会自动读取飞书表格里的全部 Sheet 页签，不需要手动填写每个 sheetId。
+
+如果只想读取指定 Sheet，也可以写：
+
+```text
+苏州|3b87c3!A1:Z5000,铜陵|xxxxxx!A1:Z5000,泰国|yyyyyy!A1:Z5000
+```
+
+## 三、飞书权限
+
+飞书开放平台应用建议开通以下读取权限：
+
+- 查看知识空间节点信息 `wiki:node:read`
+- 查看知识空间节点列表 `wiki:node:retrieve`
+- 查看知识空间信息 `wiki:space:read`
+- 查看电子表格 / 读取电子表格内容相关权限
+- 查看云文档 / 云空间文件相关权限
+
+添加权限后必须发布应用版本，否则 GitHub Actions 不会生效。
+
+## 四、部署方式
+
+进入 GitHub 仓库：
+
+```text
+Settings → Pages → Source → GitHub Actions
+```
+
+然后运行：
+
+```text
+Actions → Update Feishu Data and Deploy Pages → Run workflow
+```
+
+成功后，访问 GitHub Pages 地址即可。
+
+## 五、检查数据文件
+
+部署成功后，打开：
+
+```text
+https://你的用户名.github.io/仓库名/data/fixtures.json
+```
+
+如果能看到 JSON，说明飞书数据已经成功同步。
+
+## 六、指标定义
+
+当前版本指标定义如下：
+
+- 交付率 = 已完成项目数 / 当前筛选总项目数
+- 延期率 = 未完成且交期已过项目数 / 当前筛选总项目数
+- 当前达成率 = 未延期项目数 / 当前筛选总项目数
+
+如果后续表格增加“实际到货日期”字段，可升级为：
+
+- 准时交付率 = 实际到货日期 <= 预计交期 的项目数 / 已完成项目数
+
+## 七、使用建议
+
+日常使用流程：
+
+1. GitHub Actions 每天自动同步一次飞书数据。
+2. 打开网页看板。
+3. 选择 Sheet 页签、厂区、厂商、设计人员、交期状态或日期区间。
+4. 查看交付率、延期率、达成率。
+5. 勾选需要跟催的治具。
+6. 点击复制话术。
+7. 粘贴到个人微信发送给对应厂商。
 

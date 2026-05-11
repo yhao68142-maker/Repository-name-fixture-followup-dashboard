@@ -3,33 +3,46 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>治具外发交期跟催看板</title>
+  <title>治具外发交期跟催数据看板</title>
   <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
-  <header class="topbar">
-    <div>
-      <h1>治具外发交期跟催看板</h1>
-      <p>从飞书云表格同步数据，按厂商、设计人员、厂区和交期状态筛选，并一键复制微信跟催文字。</p>
-    </div>
-    <div class="top-actions">
-      <button id="btnRefresh" class="primary">刷新页面数据</button>
-      <button id="btnCopyAll" class="secondary">复制当前筛选话术</button>
+  <header class="hero">
+    <div class="hero-bg"></div>
+    <div class="hero-content">
+      <div>
+        <p class="eyebrow">Fixture Delivery Intelligence Dashboard</p>
+        <h1>治具外发交期跟催数据看板</h1>
+        <p>同步飞书云表格所有 Sheet，支持按项目页签、厂区、厂商、设计人员、交期区间筛选，并输出交付率、延期率、达成率和微信跟催话术。</p>
+      </div>
+      <div class="top-actions">
+        <button id="btnRefresh" class="primary">刷新页面数据</button>
+        <button id="btnCopyAll" class="secondary">复制当前筛选话术</button>
+      </div>
     </div>
   </header>
 
   <main>
     <section class="status-line" id="statusLine">正在准备页面...</section>
 
-    <section class="cards">
-      <div class="card danger"><span>已延期</span><strong id="countOverdue">0</strong></div>
-      <div class="card warn"><span>3天内交付</span><strong id="count3">0</strong></div>
-      <div class="card info"><span>7天内交付</span><strong id="count7">0</strong></div>
-      <div class="card normal"><span>一个月内交付</span><strong id="count30">0</strong></div>
-      <div class="card done"><span>已完成</span><strong id="countDone">0</strong></div>
+    <section class="cards kpi-main">
+      <div class="card dark"><span>总项目数</span><strong id="countTotal">0</strong><em>当前筛选</em></div>
+      <div class="card danger"><span>已延期</span><strong id="countOverdue">0</strong><em>未完成且已过交期</em></div>
+      <div class="card warn"><span>3天内交付</span><strong id="count3">0</strong><em>含今天到期</em></div>
+      <div class="card info"><span>7天内交付</span><strong id="count7">0</strong><em>未来一周风险</em></div>
+      <div class="card normal"><span>一个月内交付</span><strong id="count30">0</strong><em>未来30天</em></div>
+      <div class="card done"><span>已完成</span><strong id="countDone">0</strong><em>状态判定</em></div>
     </section>
 
     <section class="panel filters">
+      <div class="field">
+        <label>项目 / Sheet 页签</label>
+        <select id="sheetFilter"><option value="">全部</option></select>
+      </div>
+      <div class="field">
+        <label>厂区 / 类别</label>
+        <select id="factoryFilter"><option value="">全部</option></select>
+      </div>
       <div class="field">
         <label>厂商</label>
         <select id="supplierFilter"><option value="">全部</option></select>
@@ -37,10 +50,6 @@
       <div class="field">
         <label>设计人员</label>
         <select id="designerFilter"><option value="">全部</option></select>
-      </div>
-      <div class="field">
-        <label>厂区</label>
-        <select id="factoryFilter"><option value="">全部</option></select>
       </div>
       <div class="field">
         <label>交期状态</label>
@@ -73,9 +82,55 @@
         <label class="check"><input id="hideDone" type="checkbox" checked /> 隐藏已完成</label>
       </div>
       <div class="field buttons-field">
-        <label>&nbsp;</label>
-        <button id="btnReset" class="ghost">重置筛选</button>
+        <label>快捷区间</label>
+        <div class="quick-buttons">
+          <button id="btnThisMonth" class="ghost small">本月</button>
+          <button id="btnNext30" class="ghost small">未来30天</button>
+          <button id="btnAllDates" class="ghost small">全部</button>
+          <button id="btnReset" class="ghost small">重置</button>
+        </div>
       </div>
+    </section>
+
+    <section class="dashboard-grid">
+      <section class="panel dashboard-panel">
+        <div class="panel-head">
+          <div>
+            <h2>交付绩效看板</h2>
+            <p id="dashboardPeriod">按当前筛选和交期区间统计</p>
+          </div>
+          <div class="field compact">
+            <label>分组维度</label>
+            <select id="groupDimension">
+              <option value="factory">按厂区 / 类别</option>
+              <option value="supplier">按厂商</option>
+              <option value="designer">按设计人员</option>
+              <option value="sourceSheet">按项目 / Sheet 页签</option>
+            </select>
+          </div>
+        </div>
+        <div class="metric-row">
+          <div><span>交付率</span><strong id="deliveryRate">0%</strong><div class="bar"><i id="deliveryRateBar"></i></div></div>
+          <div><span>延期率</span><strong id="delayRate">0%</strong><div class="bar danger-bar"><i id="delayRateBar"></i></div></div>
+          <div><span>当前达成率</span><strong id="achievementRate">0%</strong><div class="bar success-bar"><i id="achievementRateBar"></i></div></div>
+        </div>
+        <div class="dash-table-wrap">
+          <table class="dash-table">
+            <thead>
+              <tr>
+                <th>对象</th><th>总项</th><th>已完成</th><th>已延期</th><th>3天内</th><th>交付率</th><th>延期率</th><th>达成率</th>
+              </tr>
+            </thead>
+            <tbody id="dashboardBody"></tbody>
+          </table>
+        </div>
+        <p class="definition-note">说明：交付率=已完成/总项；延期率=未完成且交期已过/总项；当前达成率=未延期项/总项。若表格后续增加“实际到货日期”，可进一步升级为准时交付率。</p>
+      </section>
+
+      <aside class="panel sheet-panel">
+        <div class="panel-head"><h2>Sheet 同步状态</h2></div>
+        <div id="sheetStatus" class="sheet-list"></div>
+      </aside>
     </section>
 
     <section class="layout">
@@ -94,6 +149,7 @@
               <tr>
                 <th><input id="checkAll" type="checkbox" /></th>
                 <th>交期判断</th>
+                <th>项目页签</th>
                 <th>厂商</th>
                 <th>厂区</th>
                 <th>设计</th>
@@ -126,7 +182,7 @@
         </div>
         <textarea id="messagePreview" placeholder="筛选或勾选治具后，这里会自动生成跟催文字。"></textarea>
         <div class="tips">
-          <strong>使用建议：</strong>先按厂商筛选，确认内容无误后复制到个人微信发送。复制动作会记录在本机浏览器，不会自动发送微信。
+          <strong>使用建议：</strong>先按厂商筛选，确认内容无误后复制到个人微信发送。本网页不自动发送微信，避免误发和账号风险。
         </div>
       </aside>
     </section>
