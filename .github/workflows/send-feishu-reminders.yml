@@ -1,0 +1,40 @@
+name: Send Feishu Fixture Reminders
+
+on:
+  schedule:
+    # GitHub Actions 使用 UTC 时间；对应中国时间每天 08:00
+    - cron: "0 0 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  send-reminders:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Fetch Feishu data
+        env:
+          FEISHU_APP_ID: ${{ secrets.FEISHU_APP_ID }}
+          FEISHU_APP_SECRET: ${{ secrets.FEISHU_APP_SECRET }}
+          FEISHU_WIKI_NODE_TOKEN: ${{ secrets.FEISHU_WIKI_NODE_TOKEN }}
+          FEISHU_SPREADSHEET_TOKEN: ${{ secrets.FEISHU_SPREADSHEET_TOKEN }}
+          FEISHU_SHEET_RANGES: ${{ secrets.FEISHU_SHEET_RANGES }}
+        run: node scripts/fetch-feishu-data.js
+
+      - name: Send reminders
+        env:
+          FEISHU_REMINDER_WEBHOOK: ${{ secrets.FEISHU_REMINDER_WEBHOOK }}
+        run: node scripts/send-feishu-reminders.js
