@@ -469,7 +469,13 @@ async function loadData() {
   els.statusLine.textContent = '正在同步页面数据...';
   els.btnRefresh.disabled = true;
   try {
-    const resp = await fetch(window.FIXTURE_DATA_URL || './data/fixtures.json', { cache: 'no-store' });
+    const dataUrl = window.FIXTURE_DATA_URL || './data/fixtures.json';
+    const separator = dataUrl.includes('?') ? '&' : '?';
+    const freshUrl = `${dataUrl}${separator}t=${Date.now()}`;
+
+    const resp = await fetch(freshUrl, {
+      cache: 'no-store'
+    });
     const contentType = resp.headers.get('content-type') || '';
     if (!resp.ok) throw new Error(`数据文件不存在或未部署：HTTP ${resp.status}`);
     if (!contentType.includes('application/json')) {
