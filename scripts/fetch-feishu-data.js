@@ -239,7 +239,7 @@ async function main() {
     sheets: readSheets,
     data: all
   };
-  const outPath = path.join(__dirname, '../public/data/fixtures.json');
+  const outPath = path.join(__dirname, '../data/fixtures.json');
   fs.mkdirSync(path.dirname(outPath), { recursive: true });
   fs.writeFileSync(outPath, JSON.stringify(out, null, 2), 'utf8');
   console.log(`已生成 ${outPath}，共 ${all.length} 条。`);
