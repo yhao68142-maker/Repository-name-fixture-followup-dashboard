@@ -46,8 +46,10 @@ jobs:
       - name: Check generated files
         run: |
           echo "Checking generated data files..."
-          ls -lah data || true
-          test -f data/fixtures.json
+          ls -lah public || true
+          ls -lah public/data || true
+          test -f public/index.html
+          test -f public/data/fixtures.json
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
@@ -55,7 +57,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: .
+          path: public
 
       - name: Deploy to GitHub Pages
         uses: actions/deploy-pages@v4
