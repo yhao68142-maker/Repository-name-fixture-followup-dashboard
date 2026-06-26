@@ -1,9 +1,13 @@
 name: Update Feishu Data and Deploy Pages
 
 on:
-  workflow_dispatch:
   schedule:
-    - cron: "30 23 * * *"
+    # GitHub Actions 使用 UTC 时间
+    # 对应中国时间：08:00、12:00、16:00、20:00
+    - cron: "0 0,4,8,12 * * *"
+
+  # 保留手动运行按钮
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -17,10 +21,6 @@ concurrency:
 jobs:
   update-and-deploy:
     runs-on: ubuntu-latest
-
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
       - name: Checkout
@@ -45,10 +45,9 @@ jobs:
 
       - name: Check generated files
         run: |
-          echo "=== public/data ==="
-          ls -la public/data
-          echo "=== fixtures preview ==="
-          head -n 30 public/data/fixtures.json
+          echo "Checking generated data files..."
+          ls -lah data || true
+          test -f data/fixtures.json
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
@@ -56,8 +55,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: public
+          path: .
 
       - name: Deploy to GitHub Pages
-        id: deployment
         uses: actions/deploy-pages@v4
