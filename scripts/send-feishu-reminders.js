@@ -4,10 +4,54 @@ const axios = require('axios');
 
 const WEBHOOK_URL = process.env.FEISHU_REMINDER_WEBHOOK;
 const DATA_FILE = path.join(__dirname, '../public/data/fixtures.json');
+const CHINA_HOLIDAYS = new Set(
+  String(process.env.CHINA_HOLIDAYS || '')
+    .split(',')
+    .map(date => date.trim())
+    .filter(Boolean)
+);
 
-function todayZero() {
-  const now = new Date();
-  return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+function getChinaDateParts(date = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Shanghai',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    weekday: 'short'
+  }).formatToParts(date);
+
+  return Object.fromEntries(parts.map(part => [part.type, part.value]));
+}
+
+function getChinaTodayString(date = new Date()) {
+  const parts = getChinaDateParts(date);
+  return `${parts.year}-${parts.month}-${parts.day}`;
+}
+
+function dateToDayNumber(dateText) {
+  const match = String(dateText || '').trim().match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+  if (!match) return null;
+  return Math.floor(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])) / 86400000);
+}
+
+function isChinaWeekend(date = new Date()) {
+  const weekday = getChinaDateParts(date).weekday;
+  return weekday === 'Sat' || weekday === 'Sun';
+}
+
+function isChinaHoliday(todayText) {
+  return CHINA_HOLIDAYS.has(todayText);
+}
+
+function shouldSkipToday() {
+  const todayText = getChinaTodayString();
+  if (isChinaWeekend()) {
+    return { skip: true, reason: `今天是中国周末：${todayText}` };
+  }
+  if (isChinaHoliday(todayText)) {
+    return { skip: true, reason: `今天是中国法定假期：${todayText}` };
+  }
+  return { skip: false, todayText };
 }
 
 function parseDate(value) {
@@ -18,9 +62,11 @@ function parseDate(value) {
   return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
 }
 
-function daysBetween(from, to) {
-  const ms = to.getTime() - from.getTime();
-  return Math.round(ms / 86400000);
+function daysBetweenDateText(fromText, toText) {
+  const fromDay = dateToDayNumber(fromText);
+  const toDay = dateToDayNumber(toText);
+  if (fromDay === null || toDay === null) return null;
+  return toDay - fromDay;
 }
 
 function isDelivered(item) {
@@ -214,12 +260,18 @@ async function sendFeishuMessage(items, updatedAt) {
 }
 
 async function main() {
+  const skip = shouldSkipToday();
+  if (skip.skip) {
+    console.log(`${skip.reason}，跳过发送飞书提醒。`);
+    return;
+  }
+
   if (!fs.existsSync(DATA_FILE)) {
     throw new Error(`数据文件不存在：${DATA_FILE}`);
   }
 
   const json = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
-  const today = todayZero();
+  const todayText = getChinaTodayString();
   const source = Array.isArray(json.data) ? json.data : [];
 
   const targets = source
@@ -229,7 +281,8 @@ async function main() {
     .map(item => {
       const due = parseDate(item.dueDate);
       if (!due) return null;
-      const daysLeft = daysBetween(today, due);
+      const daysLeft = daysBetweenDateText(todayText, item.dueDate);
+      if (daysLeft === null) return null;
       const level = reminderLevel(daysLeft);
       return { ...item, daysLeft, level };
     })
