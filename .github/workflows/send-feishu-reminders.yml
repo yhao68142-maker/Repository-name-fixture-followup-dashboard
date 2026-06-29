@@ -2,8 +2,9 @@ name: Send Feishu Fixture Reminders
 
 on:
   schedule:
-    # GitHub Actions 使用 UTC 时间；对应中国时间每天 08:00
-    - cron: "0 0 * * *"
+    # GitHub Actions 使用 UTC 时间；对应中国时间周一到周五 08:00
+    # 周末和中国法定假期会在脚本内再次判断并跳过发送
+    - cron: "0 0 * * 1-5"
   workflow_dispatch:
 
 permissions:
@@ -37,4 +38,5 @@ jobs:
       - name: Send reminders
         env:
           FEISHU_REMINDER_WEBHOOK: ${{ secrets.FEISHU_REMINDER_WEBHOOK }}
+          CHINA_HOLIDAYS: ${{ vars.CHINA_HOLIDAYS }}
         run: node scripts/send-feishu-reminders.js
